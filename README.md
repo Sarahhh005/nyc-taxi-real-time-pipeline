@@ -253,16 +253,7 @@ Airflow
 
 ---
 
-## 👥 Team Members
 
-| Name | Role |
-|--------|--------|
-| Sara Mahmoud | Team Lead & Data Engineer |
-| Team Member | Data Engineer |
-| Team Member | Data Engineer |
-| Team Member | AI Engineer |
-
----
 
 ## 🔮 Future Enhancements
 
