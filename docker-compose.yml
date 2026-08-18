@@ -1,5 +1,8 @@
 services:
 
+  # =========================
+  # Kafka
+  # =========================
   kafka:
     image: apache/kafka:latest
     container_name: kafka
@@ -23,6 +26,10 @@ services:
 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+
+  # =========================
+  # ClickHouse
+  # =========================
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: clickhouse
@@ -31,6 +38,10 @@ services:
       - "8123:8123"
       - "9000:9000"
 
+
+  # =========================
+  # Spark Master
+  # =========================
   spark-master:
     image: apache/spark:latest
     container_name: spark-master
@@ -43,6 +54,10 @@ services:
       - "8080:8080"
       - "7077:7077"
 
+
+  # =========================
+  # Spark Worker
+  # =========================
   spark-worker:
     image: apache/spark:latest
     container_name: spark-worker
@@ -58,5 +73,118 @@ services:
     depends_on:
       - spark-master
 
-  
-  
+
+  # =========================
+  # PostgreSQL - Airflow DB
+  # =========================
+  postgres:
+    image: postgres:16
+    container_name: airflow-postgres
+
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # =========================
+  # Airflow Init
+  # =========================
+  airflow-init:
+    image: apache/airflow:2.10.5
+
+    container_name: airflow-init
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+
+    command:
+      - bash
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com || true
+
+
+  # =========================
+  # Airflow Webserver
+  # =========================
+  airflow-webserver:
+    image: apache/airflow:2.10.5
+
+    container_name: airflow-webserver
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+    ports:
+      - "8081:8080"
+
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+
+    command: webserver
+
+
+  # =========================
+  # Airflow Scheduler
+  # =========================
+  airflow-scheduler:
+    image: apache/airflow:2.10.5
+
+    container_name: airflow-scheduler
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+
+    command: scheduler
+
+
+# =========================
+# Volumes
+# =========================
+volumes:
+  postgres-db-volume:
