@@ -1,4 +1,5 @@
 data/*.parquet
+producer/data/*.parquet
 
 __pycache__/
 

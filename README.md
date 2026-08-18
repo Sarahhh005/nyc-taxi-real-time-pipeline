@@ -373,7 +373,11 @@ nyc-taxi-real-time-pipeline/
 │   └── logs/
 │
 ├── producer/
-│   └── taxi_producer.py
+│   ├── taxi_producer.py
+│   ├── download_sample.py
+│   ├── README.md
+│   └── data/
+│       └── .gitkeep
 │
 ├── spark/
 │   └── streaming_job.py
@@ -423,6 +427,30 @@ ClickHouse
 Airflow
 Superset
 ```
+
+### Download Dataset
+
+Download and sample the NYC Yellow Taxi dataset (creates a ~0.3 MB sample):
+
+```bash
+pip install -r requirements.txt
+python producer/download_sample.py
+```
+
+### Run the Kafka Producer
+
+```bash
+python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet
+```
+
+Available traffic modes:
+
+```bash
+python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet --mode peak
+python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet --mode offpeak
+```
+
+See [producer/README.md](producer/README.md) for full documentation and all options.
 
 ---
 
