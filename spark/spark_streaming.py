@@ -45,8 +45,8 @@ def write_to_clickhouse(df, epoch_id):
         .mode("append") \
         .option("url", "jdbc:clickhouse://clickhouse:8123/NYC_TAXI") \
         .option("dbtable", CLICKHOUSE_TABLE) \
-        .option("user", "default") \
-        .option("password", "") \
+        .option("user", "spark_user") \
+        .option("password", "spark_pass") \
         .option("driver", "ru.yandex.clickhouse.ClickHouseDriver") \
         .save()
 
