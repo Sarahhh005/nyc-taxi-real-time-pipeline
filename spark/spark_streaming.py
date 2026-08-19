@@ -12,7 +12,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
+KAFKA_BOOTSTRAP_SERVERS = "kafka:9094"
 KAFKA_TOPIC = "taxi-trips"
 CLICKHOUSE_JDBC_URL = "jdbc:clickhouse://clickhouse:8123/NYC_TAXI"
 CLICKHOUSE_TABLE = "taxi_trips"
@@ -40,16 +40,15 @@ kafka_json_schema = StructType([
 def write_to_clickhouse(df, epoch_id):
     # Write micro-batch to ClickHouse via JDBC
     logger.info(f"Writing micro-batch {epoch_id} to ClickHouse...")
-    try:
-        df.write \
-            .format("jdbc") \
-            .mode("append") \
-            .option("url", CLICKHOUSE_JDBC_URL) \
-            .option("dbtable", CLICKHOUSE_TABLE) \
-            .option("driver", "com.clickhouse.jdbc.ClickHouseDriver") \
-            .save()
-    except Exception as e:
-        logger.error(f"Error writing micro-batch {epoch_id}: {e}")
+    df.write \
+        .format("jdbc") \
+        .mode("append") \
+        .option("url", "jdbc:clickhouse://clickhouse:8123/NYC_TAXI") \
+        .option("dbtable", CLICKHOUSE_TABLE) \
+        .option("user", "default") \
+        .option("password", "") \
+        .option("driver", "ru.yandex.clickhouse.ClickHouseDriver") \
+        .save()
 
 def main():
     # Init Spark

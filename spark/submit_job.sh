@@ -4,9 +4,9 @@
 # This script is intended to be run INSIDE the spark-master container
 
 # Define dependencies
-# Assuming Spark 3.5.x and Scala 2.12
-KAFKA_PKG="org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0"
-CLICKHOUSE_PKG="com.clickhouse:clickhouse-jdbc:0.6.0"
+# Assuming Spark 4.2.x and Scala 2.13
+KAFKA_PKG="org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0"
+CLICKHOUSE_PKG="ru.yandex.clickhouse:clickhouse-jdbc:0.3.2"
 
 # Path to the python script
 SCRIPT_PATH="/opt/workspace/spark/spark_streaming.py"
@@ -18,5 +18,6 @@ echo " - $CLICKHOUSE_PKG"
 
 /opt/spark/bin/spark-submit \
   --master spark://spark-master:7077 \
+  --conf "spark.jars.ivy=/tmp/.ivy" \
   --packages ${KAFKA_PKG},${CLICKHOUSE_PKG} \
   ${SCRIPT_PATH}
