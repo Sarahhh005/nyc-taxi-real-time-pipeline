@@ -54,6 +54,9 @@ services:
       - "8080:8080"
       - "7077:7077"
 
+    volumes:
+      - ./:/opt/workspace
+
 
   # =========================
   # Spark Worker
@@ -72,6 +75,9 @@ services:
 
     depends_on:
       - spark-master
+
+    volumes:
+      - ./:/opt/workspace
 
 
   # =========================

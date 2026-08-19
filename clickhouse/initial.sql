@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI.taxi_trips
     dropoff_location_id UInt16,
     fare_amount Float32,
     tip_amount Float32,
-    total_amount Float32)
+    total_amount Float32,
+    payment_type UInt8)
 ENGINE = MergeTree()
 ORDER BY pickup_datetime;
