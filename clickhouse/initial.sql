@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI.taxi_trips
     fare_amount Float32,
     tip_amount Float32,
     total_amount Float32,
-    payment_type Int32)
+    payment_type UInt8)
 ENGINE = MergeTree()
 ORDER BY pickup_datetime;
