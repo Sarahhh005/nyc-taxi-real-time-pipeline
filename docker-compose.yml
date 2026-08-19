@@ -33,8 +33,11 @@ services:
     container_name: clickhouse
 
     ports:
-      - "8123:8123"
-      - "9000:9000"
+    - "8123:8123"
+    - "9000:9000"
+
+    volumes:
+    - ./clickhouse/spark-user.xml:/etc/clickhouse-server/users.d/spark-user.xml:ro
 
 
   # =========================
