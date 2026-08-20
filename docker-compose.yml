@@ -221,6 +221,31 @@ services:
       superset run -h 0.0.0.0 -p 8088
       "
 
+  # =========================
+  # AI Agent (FastAPI + LangChain)
+  # =========================
+  ai-agent:
+    build:
+      context: ./ai_agent
+      dockerfile: Dockerfile
+    image: nyc-taxi-ai-agent:local
+    container_name: ai-agent
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_DB: NYC_TAXI
+      CLICKHOUSE_USER: spark_user
+      CLICKHOUSE_PASSWORD: spark_pass
+
+    depends_on:
+      - clickhouse
+
 # =========================
 # Volumes
 # =========================
