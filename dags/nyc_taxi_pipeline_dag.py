@@ -53,7 +53,7 @@ with DAG(
     dag_id="nyc_taxi_pipeline_dag",
     default_args=DEFAULT_ARGS,
     description="NYC Taxi Real-Time Analytics Pipeline DAG",
-    schedule_interval=None,
+    schedule_interval="*/5 * * * *",
     catchup=False,
 ) as dag:
 
