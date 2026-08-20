@@ -281,11 +281,10 @@ def stream_records(
         _shutdown_requested = True
         logger.info("KeyboardInterrupt received.")
     finally:
-        logger.info("Flushing remaining messages...")
+        logger.info("Flushing remaining messages for this batch...")
         producer.flush(timeout=10)
-        producer.close(timeout=5)
         logger.info("=" * 60)
-        logger.info("Streaming completed.")
+        logger.info("Streaming completed for current data.")
         logger.info("  Total records sent: %s", f"{total_sent:,}")
         logger.info("=" * 60)
 
@@ -378,22 +377,39 @@ Examples:
 def main():
     args = parse_args()
 
-    # 1. Load dataset
-    df = load_dataset(args.data)
+    # Determine files to process
+    data_path = Path(args.data)
+    if data_path.is_dir():
+        files = sorted(data_path.glob("*.parquet"))
+        if not files:
+            logger.error("No parquet files found in directory: %s", data_path)
+            sys.exit(1)
+    else:
+        files = [data_path]
 
-    # 2. Connect to Kafka
+    # Connect to Kafka
     producer = create_producer(args.bootstrap_server)
 
-    # 3. Stream
-    stream_records(
-        producer=producer,
-        df=df,
-        topic=args.topic,
-        mode=args.mode,
-        custom_delay=args.delay,
-        loop=args.loop,
-        batch_log_interval=args.batch_log_interval,
-    )
+    try:
+        while True:
+            for f in files:
+                if _shutdown_requested:
+                    break
+                logger.info("Processing file: %s", f)
+                df = load_dataset(str(f))
+                stream_records(
+                    producer=producer,
+                    df=df,
+                    topic=args.topic,
+                    mode=args.mode,
+                    custom_delay=args.delay,
+                    loop=False,  # We handle looping manually across files
+                    batch_log_interval=args.batch_log_interval,
+                )
+            if _shutdown_requested or not args.loop:
+                break
+    finally:
+        producer.close(timeout=5)
 
 
 if __name__ == "__main__":
