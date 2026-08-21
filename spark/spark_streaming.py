@@ -2,7 +2,7 @@ import logging
 import sys
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
+from pyspark.sql.functions import avg, col, count, from_json, sum as _sum, window
 from pyspark.sql.types import (
     FloatType,
     IntegerType,
@@ -16,6 +16,12 @@ KAFKA_BOOTSTRAP_SERVERS = "kafka:9094"
 KAFKA_TOPIC = "taxi-trips"
 CLICKHOUSE_JDBC_URL = "jdbc:clickhouse://clickhouse:8123/NYC_TAXI"
 CLICKHOUSE_TABLE = "taxi_trips"
+
+# Watermark: how late a trip event is allowed to arrive before its window is
+# considered final and dropped from state. 10 minutes is generous for a
+# simulated stream where events arrive within seconds of being produced.
+WATERMARK_DELAY = "10 minutes"
+WINDOW_DURATION = "1 minute"  # small window on purpose: makes the "live" effect visible in a demo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,18 +43,30 @@ kafka_json_schema = StructType([
     StructField("payment_type", IntegerType(), True),
 ])
 
-def write_to_clickhouse(df, epoch_id):
-    # Write micro-batch to ClickHouse via JDBC
-    logger.info(f"Writing micro-batch {epoch_id} to ClickHouse...")
+def _write_micro_batch(df, epoch_id, table_name):
+    # Shared JDBC writer for any micro-batch -> ClickHouse table sink.
+    logger.info(f"[{table_name}] Writing micro-batch {epoch_id} ({df.count()} rows)...")
     df.write \
         .format("jdbc") \
         .mode("append") \
-        .option("url", "jdbc:clickhouse://clickhouse:8123/NYC_TAXI") \
-        .option("dbtable", CLICKHOUSE_TABLE) \
+        .option("url", CLICKHOUSE_JDBC_URL) \
+        .option("dbtable", table_name) \
         .option("user", "spark_user") \
         .option("password", "spark_pass") \
         .option("driver", "ru.yandex.clickhouse.ClickHouseDriver") \
         .save()
+
+
+def write_to_clickhouse(df, epoch_id):
+    _write_micro_batch(df, epoch_id, CLICKHOUSE_TABLE)
+
+
+def write_hourly_demand(df, epoch_id):
+    _write_micro_batch(df, epoch_id, "hourly_demand")
+
+
+def write_zone_statistics(df, epoch_id):
+    _write_micro_batch(df, epoch_id, "zone_statistics")
 
 def main():
     # Init Spark
@@ -110,14 +128,69 @@ def main():
             col("payment_type").between(0, 6)
         )
 
-    # Start writing stream
-    query = transformed_stream \
+    # Sink 1: raw cleaned trips -> taxi_trips (unchanged, append mode)
+    raw_query = transformed_stream \
         .writeStream \
         .outputMode("append") \
+        .option("checkpointLocation", "/tmp/checkpoints/raw_trips") \
         .foreachBatch(write_to_clickhouse) \
         .start()
 
-    query.awaitTermination()
+    # From here on, everything is a *windowed streaming aggregation* — this is
+    # what makes the pipeline more than "read Kafka, insert row": Spark keeps
+    # running state per time-window and per zone, and emits updated rollups
+    # as new events keep arriving, bounded by the watermark above.
+    watermarked_stream = transformed_stream.withWatermark("pickup_datetime", WATERMARK_DELAY)
+
+    # Sink 2: hourly_demand — trip count / avg fare / revenue per time window.
+    hourly_demand = watermarked_stream \
+        .groupBy(window(col("pickup_datetime"), WINDOW_DURATION)) \
+        .agg(
+            count("*").alias("trip_count"),
+            avg("fare_amount").alias("avg_fare"),
+            _sum("total_amount").alias("total_revenue"),
+        ) \
+        .select(
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
+            "trip_count",
+            "avg_fare",
+            "total_revenue",
+        )
+
+    hourly_query = hourly_demand \
+        .writeStream \
+        .outputMode("update") \
+        .option("checkpointLocation", "/tmp/checkpoints/hourly_demand") \
+        .foreachBatch(write_hourly_demand) \
+        .start()
+
+    # Sink 3: zone_statistics — same idea, broken down by pickup zone.
+    zone_statistics = watermarked_stream \
+        .groupBy(window(col("pickup_datetime"), WINDOW_DURATION), col("pickup_location_id")) \
+        .agg(
+            count("*").alias("trip_count"),
+            _sum("total_amount").alias("total_revenue"),
+            avg("tip_amount").alias("avg_tip"),
+        ) \
+        .select(
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
+            "pickup_location_id",
+            "trip_count",
+            "total_revenue",
+            "avg_tip",
+        )
+
+    zone_query = zone_statistics \
+        .writeStream \
+        .outputMode("update") \
+        .option("checkpointLocation", "/tmp/checkpoints/zone_statistics") \
+        .foreachBatch(write_zone_statistics) \
+        .start()
+
+    logger.info("All 3 streaming queries started: taxi_trips, hourly_demand, zone_statistics")
+    spark.streams.awaitAnyTermination()
 
 if __name__ == "__main__":
     main()
