@@ -1,0 +1,433 @@
+
+
+REAL-TIME BIG DATA ANALYTICS PLATFORM
+NYC Taxi Real-Time
+Analytics Platform
+Streaming NYC Yellow Taxi trips from Kafka through Spark into ClickHouse — orchestrated end to end with Airflow and visualized in Superset & queried via AI Agent.
+
+Kafka
+
+Spark
+
+ClickHouse
+
+Airflow
+
+Docker
+NYC TLC YELLOW TAXI TRIP RECORDS · 2025
+PROJECT OVERVIEW
+What we built
+A Big Data platform that takes NYC Yellow Taxi trip records, streams them the way live production traffic would arrive, cleans and aggregates them in flight, and stores the result where analysts can query it in milliseconds — fully automated and containerized.
+
+
+Simulate real-time streaming
+Publish historical trip records through Kafka as if they were live events.
+
+
+Clean & transform at scale
+Spark Structured Streaming validates, casts and filters every trip.
+
+
+Analytics-ready storage
+ClickHouse holds trip-level records for sub-second queries.
+
+
+Automated orchestration
+Airflow verifies infrastructure health and triggers the stream.
+
+
+Modern, containerized stack
+Every service runs isolated and reproducible via Docker Compose.
+02
+TECHNOLOGY STACK
+Built on proven, industry-standard tools
+
+
+Python
+Core language
+
+
+Apache Kafka
+Event streaming
+
+
+Apache Spark
+Stream processing
+
+
+ClickHouse
+Analytical DB
+
+
+Apache Airflow
+Orchestration
+
+
+Docker Compose
+Containerization
+
+
+FastAPI & LangChain
+AI Agent API
+Data wrangling
+03
+HOW IT WORKS
+One trip, five hand-offs
+
+
+Apache Airflow — orchestrates every stage
+
+
+Parquet Files
+Raw NYC TLC trip data
+
+
+
+Kafka
+taxi-trips topic
+
+
+
+Spark
+Clean · validate · aggregate
+
+
+
+ClickHouse
+Trips table
+
+
+
+AI Agent
+Dashboards, KPIs & zone insights
+Seven stages — walked through one by one, next.
+04
+STEP 1 OF 6  —  SOURCE DATA
+NYC TLC Yellow Taxi trip records
+
+
+
+
+
+
+Sourced from the official NYC Taxi & Limousine Commission archive (nyc.gov/tlc) — monthly Parquet files covering every yellow-cab trip in 2025, streamed sequentially to simulate a live production feed.
+
+35+ MILLION
+TRIP RECORDS (FULL 2025)
+
+20
+RAW SOURCE FIELDS
+
+172
+DISTINCT PICKUP ZONES
+
+3.1 mi
+AVERAGE TRIP DISTANCE
+
+ClickHouse target schema — taxi_trips
+pickup_datetime
+DateTime
+
+dropoff_datetime
+DateTime
+
+passenger_count
+Int32
+
+trip_distance
+Float32
+
+pickup_location_id
+Int32
+
+dropoff_location_id
+Int32
+
+fare_amount / tip_amount
+Float32
+
+total_amount
+Float32
+
+payment_type
+UInt8
+05
+STEP 2 OF 6  —  EVENT STREAMING
+Kafka — the real-time backbone
+
+
+
+
+
+
+
+
+What it does
+A Python producer reads NYC Taxi trip rows from the Parquet source and publishes each one as a JSON message to a Kafka topic — turning a static historical file into a live, continuous event stream that downstream consumers can subscribe to.
+
+Topic
+taxi-trips
+
+Message format
+JSON, one trip per record
+
+Bootstrap server
+localhost:9092
+TRAFFIC MODES
+The producer can simulate different demand levels
+
+Peak
+~0.05s delay ± 40%
+Rush-hour message rate
+
+Normal
+~0.5s delay ± 30%
+Typical daytime traffic
+
+Off-peak
+~2.0s delay ± 25%
+Overnight, low-demand hours
+06
+STEP 3 OF 6  —  STREAM PROCESSING
+Spark — cleaning and validating in flight
+
+
+
+
+
+
+Spark Structured Streaming subscribes to the Kafka topic, parses each JSON message against a defined schema, casts every field to its proper type, and applies a set of data-quality rules before writing clean micro-batches to ClickHouse via JDBC.
+TRANSFORMATIONS
+
+1
+Parse
+Read raw Kafka JSON against a fixed 10-field schema.
+
+2
+Cast
+Convert timestamps, ints and floats to their target types.
+
+3
+De-duplicate
+Drop exact duplicate trip records.
+
+4
+Clean nulls
+Drop rows missing pickup/dropoff time; fill missing passenger count.
+
+VALIDATION FILTER
+Only trips passing every rule reach ClickHouse
+
+fare_amount ≥ 0
+
+passenger_count ≤ 8
+
+dropoff_datetime > pickup_datetime
+
+pickup / dropoff zone IDs between 1 and 265
+
+payment_type between 0 and 6
+
+excludes zero-distance trips with fare > $10
+07
+STEP 3 OF 6  —  STREAM PROCESSING
+Spark — cleaning and validating in flight
+
+
+
+
+
+
+STEP 4 OF 6  —  ANALYTICAL STORAGE
+ClickHouse — built for instant queries
+
+
+
+
+
+
+
+
+Why ClickHouse
+A column-oriented analytical database purpose-built for aggregations over large volumes of event data — exactly the kind of scan-heavy queries a taxi-demand dashboard needs to run in milliseconds.
+SETUP
+
+Database
+NYC_TAXI
+
+Table
+taxi_trips
+
+Engine
+MergeTree()
+
+Ordered by
+pickup_datetime
+
+Write path
+Spark → JDBC → ClickHouse
+
+ANALYTICAL QUERIES
+What Agents asks ClickHouse
+
+Total trip volume
+COUNT(*) across all trips
+
+Average fare & tip
+AVG(fare_amount), AVG(tip_amount)
+
+Tip performance by zone
+AVG(tip_amount) grouped by pickup_location_id
+
+Demand over time
+COUNT(*) grouped by minute-level pickup time
+08
+STEP 5 OF 6  —  ORCHESTRATION
+Airflow — keeping every stage honest
+
+
+
+
+
+
+A single DAG — nyc_taxi_pipeline_dag — verifies that Kafka and ClickHouse are reachable before triggering the streaming simulation, with automatic retries on failure.
+
+
+verify_kafka_connectivity
+Checks kafka:9092 is reachable
+
+
+verify_clickhouse_connectivity
+Pings the ClickHouse HTTP endpoint
+
+
+
+
+
+
+trigger_stream_simulation
+Kicks off the taxi data stream
+
+SCHEDULE
+Manual trigger
+
+RETRIES
+1, with 1-minute delay
+
+FAILURE ALERTS
+Email on failure (configurable)
+09
+STEP 5 OF 6  —  ORCHESTRATION
+Airflow — keeping every stage honest
+
+
+
+
+
+
+STEP 6 OF 6  —  AI Agent
+AI Agent — where you ask
+
+
+
+
+
+
+10
+Docker — the real-time backbone
+06
+
+RESULTS & VISUALIZATIONS in SPARK
+Revenue & payment patterns
+Computed directly from the 35+ Million trips — Full Year 2025.
+
+Total revenue by day of week
+
+Payment method mix
+
+Credit card
+70%
+
+Unspecified
+16%
+
+Cash
+11%
+
+Dispute
+2%
+
+No charge
+1%
+12
+BUSINESS IMPACT
+Questions the platform is built to answer
+BUSINESS QUESTIONS
+
+?
+What are the busiest pickup & drop-off zones?
+
+?
+Which hours experience the highest demand?
+
+?
+Which days generate the highest revenue?
+
+?
+What are the most profitable routes?
+
+?
+How does trip demand change over time?
+
+?
+How do passenger trends vary across locations?
+
+EXPECTED OUTCOMES
+What transportation analytics teams gain
+
+Monitor taxi demand in real time
+
+Identify high-revenue zones
+
+Understand passenger behavior
+
+Track operational KPIs at a glance
+
+Spot demand trends as they emerge
+
+Support data-driven decisions
+13
+WHAT'S NEXT
+Roadmap for future enhancements
+
+
+Real-time alerting
+Push notifications the moment demand or revenue moves unusually.
+
+
+Predictive demand forecasting
+Model historical patterns to anticipate next-week demand.
+
+
+Cloud deployment
+Migrate the stack to AWS / Azure for elastic scale.
+
+
+CI/CD integration
+Automated testing and deployment for every pipeline change.
+
+
+Automated reporting
+Scheduled summaries delivered straight to stakeholders.
+
+
+Advanced Multi-Agent System
+Implement conversational memory for the AI Agent.
+14
+
+
+Thank You
+NYC Taxi Real-Time Analytics Platform
+Kafka · Spark · ClickHouse · Airflow · Superset · AI Agent · Docker
+
+github.com/Sarahhh005/nyc-taxi-real-time-pipeline

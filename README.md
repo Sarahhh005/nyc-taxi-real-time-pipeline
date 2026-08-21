@@ -1,472 +1,217 @@
-# 🚖 NYC Taxi Real-Time Analytics Pipeline
+# NYC Taxi Real-Time Analytics Pipeline
 
-## 📌 Project Overview
+An end-to-end, containerized Big Data platform that turns historical NYC Yellow Taxi trip records into a live event stream, cleans and aggregates them in flight, stores the results for millisecond-latency analytics, and exposes them through a natural-language AI agent.
 
-The NYC Taxi Real-Time Analytics Pipeline is an end-to-end Big Data and AI-powered analytics platform designed to process, analyze, and monitor NYC Yellow Taxi trip records using modern data engineering technologies.
-
-The system simulates a real-time streaming environment by ingesting NYC Taxi trip data, publishing records through Apache Kafka, processing them with Spark Structured Streaming, storing analytical results in ClickHouse, orchestrating workflows with Apache Airflow, visualizing insights through Apache Superset, and generating intelligent business insights using an AI Agent.
-
-This project demonstrates how modern Data Engineering, Business Intelligence, and Artificial Intelligence can work together to build a scalable real-time analytics ecosystem.
+**Stack:** Apache Kafka · Apache Spark Structured Streaming · ClickHouse · Apache Airflow · FastAPI + LangChain · React · Docker Compose
 
 ---
 
-## 🎯 Project Objectives
+## Overview
 
-- Build a scalable real-time data pipeline.
-- Process large-scale NYC Taxi trip data.
-- Perform data cleaning, validation, and transformation.
-- Store processed data for high-performance analytical queries.
-- Automate workflow orchestration using Apache Airflow.
-- Deliver interactive dashboards and KPIs.
-- Generate AI-powered insights and forecasts.
-- Demonstrate modern Big Data architecture and industry best practices.
+The pipeline simulates a real-time production environment on top of publicly available NYC Taxi & Limousine Commission (TLC) trip data:
+
+1. A Python producer reads NYC Yellow Taxi trip records from Parquet files and publishes them to Kafka as JSON messages, at a configurable rate.
+2. Apache Spark Structured Streaming consumes the stream, validates and casts every record, and writes clean micro-batches into ClickHouse.
+3. ClickHouse stores both raw trip-level records and pre-aggregated rollups for sub-second analytical queries.
+4. Apache Airflow orchestrates the pipeline — checking that Kafka and ClickHouse are reachable before triggering the stream, with automatic retries on failure.
+5. A FastAPI + LangChain AI agent lets users ask questions about the data in plain English, served through a React frontend.
+
+The dataset covers the full year of **2025** NYC Yellow Taxi trip records, sourced from the official TLC archive.
 
 ---
 
-## 🏗️ System Architecture
+## Architecture
 
 ```text
-                            ┌─────────────┐
-                            │   Airflow   │
-                            │Orchestration│
-                            └──────┬──────┘
-                                   │
-                                   ▼
-
-                     ┌─────────────────────────┐
-                     │ NYC Taxi Parquet Files  │
-                     └───────────┬─────────────┘
-                                 │
-                                 ▼
-
-                        ┌────────────────┐
-                        │ Taxi Producer  │
-                        └───────┬────────┘
-                                │
-                                ▼
-
-                        ┌────────────────┐
-                        │     Kafka      │
-                        │  taxi-trips    │
-                        └───────┬────────┘
-                                │
-                                ▼
-
-                 ┌──────────────────────────┐
-                 │ Spark Structured Stream  │
-                 └────────────┬─────────────┘
-                              │
-                              ▼
-
-                      ┌───────────────────┐
-                      │    ClickHouse     │
-                      └─────────┬─────────┘
-                                │
-               ┌────────────────┴────────────────┐
-               ▼                                 ▼
-
-      ┌─────────────────┐             ┌─────────────────┐
-      │ Apache Superset │             │    AI Agent     │
-      │   Dashboards    │             │ Analytics Layer │
-      └────────┬────────┘             └────────┬────────┘
-               │                               │
-               └───────────────┬───────────────┘
-                               ▼
-
-                Business Insights & Forecasts
+                 ┌───────────────┐
+                 │    Airflow    │
+                 │ Orchestration │
+                 └───────┬───────┘
+                         │
+                         ▼
+          ┌─────────────────────────┐
+          │ NYC Taxi Parquet Files  │
+          └────────────┬────────────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │       Kafka       │
+              │   (taxi-trips)    │
+              └─────────┬─────────┘
+                        │
+                        ▼
+      ┌───────────────────────────────┐
+      │  Spark Structured Streaming   │
+      └──────────────┬────────────────┘
+                      │
+                      ▼
+              ┌───────────────────┐
+              │     ClickHouse    │
+              └─────────┬─────────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │   AI Agent        │
+              │ (FastAPI +        │
+              │   LangChain)      │
+              └─────────┬─────────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │  React Frontend   │
+              └───────────────────┘
 ```
 
 ---
 
-## ⚙️ Technology Stack
+## Technology Stack
 
 | Layer | Technology |
-|---------|---------|
-| Programming Language | Python |
-| Data Source | NYC TLC Yellow Taxi Dataset |
-| Streaming Platform | Apache Kafka |
-| Processing Engine | Apache Spark Structured Streaming |
-| Analytical Database | ClickHouse |
-| Workflow Orchestration | Apache Airflow |
-| Visualization Layer | Apache Superset |
-| AI Layer | FastAPI + LangChain + OpenAI |
-| Containerization | Docker & Docker Compose |
+| :--- | :--- |
+| Language | Python |
+| Event streaming | Apache Kafka |
+| Stream processing | Apache Spark Structured Streaming |
+| Analytical storage | ClickHouse |
+| Orchestration | Apache Airflow (LocalExecutor, PostgreSQL metadata DB) |
+| AI agent API | FastAPI + LangChain (SQL agent over ClickHouse, OpenAI-compatible LLM) |
+| Frontend | React 18 + Vite |
+| Containerization | Docker Compose |
 
 ---
 
-## 📂 Dataset
-
-The project uses the NYC Taxi & Limousine Commission (TLC) Yellow Taxi Trip Records dataset for the year 2025.
-
-### Dataset Source
-
-https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
-
-### Example Files
-
-```text
-yellow_tripdata_2025-01.parquet
-yellow_tripdata_2025-02.parquet
-...
-yellow_tripdata_2025-12.parquet
-```
-
-Due to dataset size limitations, data files are not stored in this repository.
-
-Place all downloaded files inside:
-
-```text
-data/
-```
-
----
-
-## 🔄 Pipeline Workflow
-
-### 1. Data Ingestion
-
-NYC Taxi trip records are stored as Parquet files and serve as the pipeline's primary data source.
-
-### 2. Producer Layer
-
-A custom Python producer reads taxi trip records from Parquet files and publishes them into Kafka topics.
-
-**Input**
-
-```text
-NYC Taxi Parquet Files
-```
-
-**Output**
-
-```text
-Kafka Messages
-```
-
----
-
-### 3. Streaming Layer
-
-Apache Kafka acts as the central event streaming platform responsible for transporting trip events between pipeline components.
-
-**Topic**
-
-```text
-taxi-trips
-```
-
-**Input**
-
-```text
-Taxi Trip Events
-```
-
-**Output**
-
-```text
-Real-Time Event Stream
-```
-
----
-
-### 4. Processing Layer
-
-Spark Structured Streaming consumes Kafka events and performs:
-
-- Data Cleaning
-- Data Validation
-- Missing Value Handling
-- Feature Engineering
-- Real-Time Aggregations
-- Business Metric Computation
-
-**Input**
-
-```text
-Kafka Stream
-```
-
-**Output**
-
-```text
-Processed & Enriched Taxi Data
-```
-
----
-
-### 5. Storage Layer
-
-Processed records and analytical aggregates are stored inside ClickHouse.
-
-Example analytical tables:
-
-- trips
-- hourly_demand
-- daily_revenue
-- zone_statistics
-
-**Input**
-
-```text
-Processed Streaming Data
-```
-
-**Output**
-
-```text
-Analytics-Ready Tables
-```
-
----
-
-### 6. Workflow Orchestration
-
-Apache Airflow automates and manages pipeline execution.
-
-Responsibilities include:
-
-- Producer Scheduling
-- Spark Job Scheduling
-- Data Quality Checks
-- Workflow Monitoring
-- Failure Recovery
-- Automated Reporting
-
----
-
-### 7. Analytics Layer
-
-Apache Superset provides interactive dashboards and business intelligence visualizations built directly on top of ClickHouse.
-
-The dashboard layer enables stakeholders to monitor system performance and business metrics in near real time.
-
----
-
-### 8. AI Analytics Layer
-
-The AI Agent consumes analytical data and generates intelligent insights, forecasts, and recommendations.
-
-Capabilities include:
-
-- Demand Forecasting
-- Revenue Analysis
-- Trend Detection
-- Anomaly Detection
-- Natural Language Analytics
-- Automated Insight Generation
-
----
-
-## 📈 Analytics & Visualization
-
-Apache Superset delivers enterprise-grade dashboards and analytical reports.
-
-### Dashboard Capabilities
-
-- Revenue Monitoring
-- Demand Analysis
-- Peak Hours Analysis
-- Pickup Zone Insights
-- Drop-off Zone Insights
-- Operational KPIs
-- Trend Monitoring
-- Time-Series Analysis
-
-These dashboards provide decision-makers with near real-time visibility into taxi operations and business performance.
-
----
-
-## 🤖 AI Agent Features
-
-The AI Agent transforms raw analytics into actionable business intelligence.
-
-### Natural Language Analytics
-
-Users can interact with the platform using natural language rather than writing SQL queries.
-
-#### Example Queries
-
-```text
-Which pickup zone generated the highest revenue this month?
-
-What was the busiest pickup location this week?
-
-Show the top 10 zones by trip count.
-
-What is the average trip distance by day?
-```
-
----
-
-### Demand Forecasting
-
-The AI Agent predicts future taxi demand using historical trip patterns.
-
-Examples:
-
-- Predict next week's demand
-- Forecast peak traffic periods
-- Estimate future trip volumes
-- Predict revenue trends
-
----
-
-### Anomaly Detection
-
-Automatically identify unusual operational patterns such as:
-
-- Sudden demand spikes
-- Revenue drops
-- Unexpected traffic behavior
-- Irregular trip activity
-
----
-
-### Automated Insight Generation
-
-The AI Agent generates executive-style summaries and recommendations.
-
-Example:
-
-> Taxi demand increased by 18% during weekend evenings, primarily driven by airport-related trips.
-
----
-
-## 📊 Business Questions Answered
-
-The platform aims to answer questions such as:
-
-- What are the busiest pickup zones?
-- What are the busiest drop-off zones?
-- Which hours experience the highest demand?
-- Which days generate the highest revenue?
-- How does trip demand change over time?
-- What are the most profitable routes?
-- Can future taxi demand be predicted?
-- Are there unusual demand spikes?
-- How do passenger trends vary across locations?
-
----
-
-## 🎯 Expected Business Outcomes
-
-This platform enables transportation analytics teams to:
-
-- Monitor taxi demand in real time.
-- Identify high-revenue zones.
-- Understand passenger behavior.
-- Detect operational anomalies.
-- Forecast future demand.
-- Optimize transportation planning.
-- Support data-driven decision making.
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```text
 nyc-taxi-real-time-pipeline/
-│
-├── airflow/
-│   ├── dags/
-│   ├── configs/
-│   └── logs/
-│
-├── producer/
-│   ├── taxi_producer.py
-│   ├── download_sample.py
-│   ├── README.md
-│   └── data/
-│       └── .gitkeep
-│
-├── spark/
-│   └── streaming_job.py
-│
-├── clickhouse/
-│
-├── docker/
-│
-├── docs/
-│
-├── data/
-│
-├── docker-compose.yml
-├── requirements.txt
-├── .gitignore
+├── ai_agent/               # FastAPI service exposing a LangChain SQL agent over ClickHouse
+│   ├── main.py             # API entrypoint (/health, /ask, /ask/stream)
+│   ├── agent.py            # LangChain SQL agent setup and streaming logic
+│   ├── db.py                # ClickHouse connection helper
+│   └── prompts.py          # Agent system prompt
+├── airflow/ dags/          # Orchestration DAG (nyc_taxi_pipeline_dag)
+├── clickhouse/             # Schema initialization and analytical queries
+├── docs/                   # Project documentation and presentation
+├── frontend/                # React + Vite chat UI for the AI agent
+├── producer/                # Kafka producer, sample-data downloader, tests
+├── spark/                   # Spark Structured Streaming job
+├── docker-compose.yml       # Full infrastructure orchestration
+├── requirements.txt         # Root-level Python dependencies (producer)
 └── README.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## Pipeline Workflow
 
-### Clone Repository
+### 1. Source data
+NYC TLC Yellow Taxi trip records in Parquet format serve as the historical batch source. `producer/download_sample.py` downloads a monthly file and draws a reproducible random sample for local development.
 
+### 2. Event streaming
+`producer/taxi_producer.py` reads the Parquet file and publishes each trip as a JSON message to the Kafka topic `taxi-trips`. Traffic can be simulated at different rates:
+
+| Mode | Delay | Description |
+| :--- | :--- | :--- |
+| `peak` | ~0.05s ± 40% jitter | Rush-hour message rate |
+| `normal` (default) | ~0.5s ± 30% jitter | Typical daytime traffic |
+| `offpeak` | ~2.0s ± 25% jitter | Overnight, low-demand hours |
+
+### 3. Stream processing
+`spark/spark_streaming.py` (Apache Spark Structured Streaming) subscribes to the Kafka topic and, before writing to ClickHouse via JDBC:
+- Parses each JSON message against a fixed schema and casts fields to their target types.
+- De-duplicates exact duplicate trip records and drops rows with missing pickup/dropoff timestamps.
+- Validates: `fare_amount ≥ 0`, `passenger_count ≤ 8`, `dropoff_datetime > pickup_datetime`, pickup/dropoff zone IDs between 1–265, and `payment_type` between 0–6.
+
+### 4. Analytical storage
+ClickHouse (database `NYC_TAXI`) stores:
+- **`taxi_trips`** — cleaned, trip-level records (`MergeTree`, ordered by `pickup_datetime`).
+- **`hourly_demand`** — windowed trip count, average fare, and total revenue rollups (`ReplacingMergeTree`).
+- **`zone_statistics`** — windowed trip count, revenue, and average tip by pickup zone (`ReplacingMergeTree`).
+
+### 5. Orchestration
+A single Airflow DAG, `nyc_taxi_pipeline_dag`, verifies Kafka and ClickHouse connectivity, then triggers the streaming simulation, with retry-on-failure built in.
+
+### 6. AI agent
+The FastAPI service in `ai_agent/` wraps a LangChain SQL agent around the ClickHouse `taxi_trips` schema, exposing:
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/health` | GET | Liveness check |
+| `/ask` | POST | `{"question": "..."}` → natural-language answer |
+| `/ask/stream` | POST | `{"question": "..."}` → streamed text response |
+| `/docs` | GET | Auto-generated Swagger UI |
+
+The React frontend (`frontend/`) provides a chat console on top of this API.
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Docker and Docker Compose
+- Python 3.11+ (for running the producer locally)
+- An OpenAI-compatible API key for the AI agent (defaults to an OpenRouter-compatible endpoint)
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/Sarahhh005/nyc-taxi-real-time-pipeline.git
 cd nyc-taxi-real-time-pipeline
 ```
 
-### Start Infrastructure
+### 2. Configure environment
+The AI agent reads `OPENAI_API_KEY` (and optionally `OPENAI_API_BASE`, `LLM_MODEL`) from the environment. Set these before starting the stack, e.g.:
+```bash
+export OPENAI_API_KEY=your_key_here
+```
 
+### 3. Start the infrastructure
 ```bash
 docker compose up -d
 ```
 
-### Verify Running Containers
-
+This brings up Kafka, ClickHouse, Spark (master + worker), Airflow (Postgres, init, webserver, scheduler), the AI agent, and the frontend. Verify everything is running:
 ```bash
 docker ps
 ```
 
-Expected services:
+| Service | URL |
+| :--- | :--- |
+| Airflow UI | http://localhost:8081 |
+| Spark master UI | http://localhost:8080 |
+| ClickHouse HTTP interface | http://localhost:8123 |
+| AI Agent API / Swagger docs | http://localhost:8000/docs |
+| Frontend | http://localhost:3000 |
+| Kafka broker | localhost:9092 |
 
-```text
-Kafka
-ClickHouse
-Airflow
-Superset
-```
-
-### Download Dataset
-
-Download and sample the NYC Yellow Taxi dataset (creates a ~0.3 MB sample):
-
+### 4. Prepare sample data
 ```bash
 pip install -r requirements.txt
 python producer/download_sample.py
 ```
 
-### Run the Kafka Producer
-
+### 5. Start the producer
 ```bash
 python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet
 ```
 
-Available traffic modes:
-
+Optional traffic modes:
 ```bash
 python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet --mode peak
 python producer/taxi_producer.py --data data/yellow_tripdata_2025-01_sample_10000.parquet --mode offpeak
 ```
 
-See [producer/README.md](producer/README.md) for full documentation and all options.
+---
+
+## Roadmap
+
+- Real-time alerting on unusual demand or revenue movement
+- Predictive demand forecasting from historical patterns
+- Cloud deployment (AWS / Azure) for elastic scale
+- CI/CD integration for automated testing and deployment
+- Automated, scheduled reporting to stakeholders
+- Conversational memory for the AI agent (multi-agent system)
 
 ---
 
-## 🔮 Future Enhancements
+## License
 
-- Multi-Agent Analytics System
-- Real-Time Alerting
-- Predictive Demand Forecasting
-- RAG-Powered Knowledge Assistant
-- Cloud Deployment (AWS / Azure)
-- CI/CD Integration
-- Automated Reporting & Notifications
-
----
-
-## 👥 Team
-
-Developed as a collaborative Big Data Engineering project focused on real-time analytics, scalable data processing, and AI-powered business intelligence.
-
+No license file is currently included in this repository. Add one (e.g. MIT, Apache 2.0) before distributing or accepting external contributions.
